@@ -1,0 +1,31 @@
+{
+  "name": "game-account-copyright-monitor",
+  "version": "1.0.0",
+  "private": true,
+  "description": "网络游戏账号交易版权监测系统 V1.0 — 面向游戏版权方/发行商的账号交易侵权线索监测与处置平台",
+  "type": "module",
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "server": "node server/index.mjs",
+    "web": "vite --config web/vite.config.ts",
+    "build": "vite build --config web/vite.config.ts",
+    "start": "node server/index.mjs",
+    "seed": "node server/seed.mjs --reset",
+    "test": "node --test \"server/tests/*.test.mjs\""
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "^5.7.2",
+    "vite": "^5.4.11"
+  }
+}
