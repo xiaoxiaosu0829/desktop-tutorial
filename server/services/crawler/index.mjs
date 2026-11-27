@@ -6,10 +6,16 @@ import { similarity, variantHash } from '../imagehash.mjs'
 import { getBaseline } from '../baseline.mjs'
 import jiaoyimao from './jiaoyimao.mjs'
 import pangxie from './pangxie.mjs'
+import taoshouyou from './taoshouyou.mjs'
+import p5173 from './p5173.mjs'
+import p7881 from './p7881.mjs'
 
 const ADAPTERS = new Map([
   [jiaoyimao.id, jiaoyimao],
   [pangxie.id, pangxie],
+  [taoshouyou.id, taoshouyou],
+  [p5173.id, p5173],
+  [p7881.id, p7881],
 ])
 
 export function listAdapters() {

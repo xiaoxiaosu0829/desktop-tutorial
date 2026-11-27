@@ -1,5 +1,5 @@
 import React from 'react'
-import { api, fmtTime, sourceLabel } from '../api'
+import { api, fmtTime, sourceLabel, SOURCES } from '../api'
 import { Empty, Loading, useToast } from '../components/ui'
 
 const emptyForm = { name: '', source: 'jiaoyimao', keywords: '王者荣耀, 原神', intervalMinutes: 360 }
@@ -93,8 +93,7 @@ export default function Tasks() {
               <div className="field">
                 <label>监测渠道</label>
                 <select value={form.source} onChange={(e) => setForm({ ...form, source: e.target.value })}>
-                  <option value="jiaoyimao">交易猫</option>
-                  <option value="pangxie">螃蟹账号交易</option>
+                  {SOURCES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
                 </select>
               </div>
               <div className="field span-2">

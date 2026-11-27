@@ -1,5 +1,5 @@
 import React from 'react'
-import { api, fmtMoney, fmtTime, sourceLabel } from '../api'
+import { api, fmtMoney, fmtTime, sourceLabel, SOURCES } from '../api'
 import { Loading, Empty, StatusBadge, useToast } from '../components/ui'
 
 const SEVERITIES = ['高', '中', '低']
@@ -48,8 +48,7 @@ export default function Alerts() {
             </select>
             <select className="select" value={filters.source} onChange={(e) => { setFilters({ ...filters, source: e.target.value }); setPage(1) }}>
               <option value="">全部渠道</option>
-              <option value="jiaoyimao">交易猫</option>
-              <option value="pangxie">螃蟹账号交易</option>
+              {SOURCES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
             </select>
             <span className="spacer" />
             <span style={{ color: 'var(--ink-3)', fontSize: 12 }}>共 {data?.total ?? '—'} 条预警</span>

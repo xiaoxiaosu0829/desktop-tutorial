@@ -1,5 +1,5 @@
 import React from 'react'
-import { api, evidenceUrl, fmtMoney, fmtTime, sourceLabel } from '../api'
+import { api, evidenceUrl, fmtMoney, fmtTime, sourceLabel, SOURCES } from '../api'
 import { Drawer, Empty, Loading, RiskBadge, StatusBadge, useToast } from '../components/ui'
 
 const LEVELS = ['高', '中', '低']
@@ -80,8 +80,7 @@ export default function Listings() {
             />
             <select className="select" value={filters.source} onChange={(e) => { setFilters({ ...filters, source: e.target.value }); setPage(1) }}>
               <option value="">全部渠道</option>
-              <option value="jiaoyimao">交易猫</option>
-              <option value="pangxie">螃蟹账号交易</option>
+              {SOURCES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
             </select>
             <select className="select" value={filters.level} onChange={(e) => { setFilters({ ...filters, level: e.target.value }); setPage(1) }}>
               <option value="">全部等级</option>

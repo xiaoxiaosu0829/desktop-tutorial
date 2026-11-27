@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import { all, one, run, nowISO } from '../db.mjs'
 import { uid, addMinutes } from '../lib/utils.mjs'
-import { runTask } from '../services/crawler/index.mjs'
+import { runTask, listAdapters } from '../services/crawler/index.mjs'
 
 const router = Router()
 
@@ -18,7 +18,9 @@ router.get('/tasks', (req, res) => {
 router.post('/tasks', (req, res) => {
   const { name, source, keywords = [], intervalMinutes = 360 } = req.body ?? {}
   if (!name || !source) return res.status(400).json({ error: '任务名称与渠道必填' })
-  if (!['jiaoyimao', 'pangxie'].includes(source)) return res.status(400).json({ error: '不支持的渠道' })
+  if (!listAdapters().some((a) => a.id === source)) {
+    return res.status(400).json({ error: `不支持的渠道，可选：${listAdapters().map((a) => a.name).join(' / ')}` })
+  }
 
   const id = uid('tsk')
   run(`INSERT INTO tasks (id, name, source, keywords, interval_minutes, enabled, next_run_at, created_at)

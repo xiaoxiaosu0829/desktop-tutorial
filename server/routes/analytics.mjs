@@ -9,7 +9,13 @@ import { listBaselines, computeBaselines } from '../services/baseline.mjs'
 
 const router = Router()
 
-const SOURCE_LABEL = { jiaoyimao: '交易猫', pangxie: '螃蟹账号交易' }
+const SOURCE_LABEL = {
+  jiaoyimao: '交易猫',
+  pangxie: '螃蟹账号交易',
+  taoshouyou: '淘手游',
+  5173: '5173游戏交易',
+  7881: '7881游戏交易',
+}
 
 /** 基础元数据：前端筛选项与系统信息 */
 router.get('/meta', (req, res) => {

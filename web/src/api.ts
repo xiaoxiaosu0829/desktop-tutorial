@@ -107,5 +107,13 @@ export const fmtTime = (iso?: string | null) => {
   return `${d.getMonth() + 1}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
 }
 
-export const sourceLabel = (id: string) =>
-  ({ jiaoyimao: '交易猫', pangxie: '螃蟹账号交易' } as Record<string, string>)[id] ?? id
+/** 支持的业务渠道（顺序即前端展示顺序） */
+export const SOURCES = [
+  { id: 'jiaoyimao', label: '交易猫' },
+  { id: 'pangxie', label: '螃蟹账号交易' },
+  { id: 'taoshouyou', label: '淘手游' },
+  { id: '5173', label: '5173游戏交易' },
+  { id: '7881', label: '7881游戏交易' },
+]
+
+export const sourceLabel = (id: string) => SOURCES.find((s) => s.id === id)?.label ?? id

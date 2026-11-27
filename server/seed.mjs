@@ -86,9 +86,14 @@ tx(() => {
     run(`INSERT INTO sellers (id, source, seller_name, seller_ref, authorized, risk_note, created_at) VALUES (?,?,?,?,?,?,?)`,
       [uid('slr'), l.holder.startsWith('猫') ? 'jiaoyimao' : 'pangxie', l.holder, 'demo', 1, '已备案被授权方', now])
   }
-  for (const [name, source] of [['猫字号-D103', 'jiaoyimao'], ['蟹字号-E104', 'pangxie']]) {
+  for (const [name, source] of [['猫字号-D103', 'jiaoyimao'], ['蟹字号-E104', 'pangxie'], ['五字号-B101', '5173'], ['七字号-C102', '7881']]) {
     run(`INSERT INTO sellers (id, source, seller_name, seller_ref, authorized, risk_note, created_at) VALUES (?,?,?,?,?,?,?)`,
       [uid('slr'), source, name, 'demo', 0, '历史投诉 2 次，重点观察', now])
+  }
+  // 新渠道各有一个已备案的白名单主体
+  for (const [name, source] of [['淘字号-A100', 'taoshouyou'], ['七字号-A100', '7881']]) {
+    run(`INSERT INTO sellers (id, source, seller_name, seller_ref, authorized, risk_note, created_at) VALUES (?,?,?,?,?,?,?)`,
+      [uid('slr'), source, name, 'demo', 1, '已备案渠道合作方', now])
   }
 
   // 监测任务
@@ -97,6 +102,9 @@ tx(() => {
     { id: uid('tsk'), name: '交易猫全量观察', source: 'jiaoyimao', keywords: ['星铁', '英雄联盟', '账号'], interval: 720 },
     { id: uid('tsk'), name: '螃蟹渠道侵权巡检', source: 'pangxie', keywords: ['和平精英', '永劫无间', '蛋仔派对'], interval: 360 },
     { id: uid('tsk'), name: '螃蟹高价值账号观察', source: 'pangxie', keywords: ['满命', '满级号'], interval: 1440, enabled: 0 },
+    { id: uid('tsk'), name: '淘手游侵权巡检', source: 'taoshouyou', keywords: ['王者荣耀', '原神'], interval: 480 },
+    { id: uid('tsk'), name: '5173 渠道日常巡检', source: '5173', keywords: ['梦幻西游', '英雄联盟'], interval: 480 },
+    { id: uid('tsk'), name: '7881 新游观察', source: '7881', keywords: ['星铁', '永劫无间'], interval: 720 },
   ]
   for (const t of tasks) {
     run(
@@ -128,9 +136,17 @@ tx(() => {
 }
 
 // 通过真实入库链路生成线索（含匹配、评分、预警），保证与运行时行为一致
+// 五个渠道：前两个各 2 页，其余各 1 页（演示量级：约 140 条线索）
+const SEED_SOURCES = [
+  { id: 'jiaoyimao', pages: 2 },
+  { id: 'pangxie', pages: 2 },
+  { id: 'taoshouyou', pages: 1 },
+  { id: '5173', pages: 1 },
+  { id: '7881', pages: 1 },
+]
 const result = { created: 0, updated: 0, alerts: 0 }
-for (const source of ['jiaoyimao', 'pangxie']) {
-  for (let page = 1; page <= 2; page++) {
+for (const { id: source, pages } of SEED_SOURCES) {
+  for (let page = 1; page <= pages; page++) {
     const raw = demoListings(source, { count: 20, seed: 20261112 + page * 7, page })
     const r = ingestForensic(raw, { source })
     result.created += r.created

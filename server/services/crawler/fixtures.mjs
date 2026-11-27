@@ -36,6 +36,15 @@ const RISK_SUFFIX = [
 
 const SAFE_SUFFIX = ['，支持官方验号', '，走平台担保交易', '，实名可过户', '，无封禁记录']
 
+/** 各渠道的展示元信息：商品号前缀、卖家字号、演示域名、路径 */
+const SOURCE_META = {
+  jiaoyimao: { prefix: 'JYM', seller: '猫', domain: 'demo.jiaoyimao.invalid', path: 'item', seed: 7 },
+  pangxie: { prefix: 'PX', seller: '蟹', domain: 'demo.pangxie.invalid', path: 'goods', seed: 19 },
+  taoshouyou: { prefix: 'TSY', seller: '淘', domain: 'demo.taoshouyou.invalid', path: 'goods', seed: 29 },
+  '5173': { prefix: 'W5', seller: '五', domain: 'demo.5173.invalid', path: 'goods', seed: 41 },
+  '7881': { prefix: 'Q7', seller: '七', domain: 'demo.7881.invalid', path: 'goods', seed: 53 },
+}
+
 function mulberry32(seed) {
   let a = seed >>> 0
   return function () {
@@ -51,11 +60,12 @@ const money = (n) => Math.round(n / 10) * 10
 
 /**
  * 生成某渠道的演示挂售列表
- * @param {'jiaoyimao'|'pangxie'} source
+ * @param {'jiaoyimao'|'pangxie'|'taoshouyou'|'5173'|'7881'} source
  * @param {{keywords?:string[], count?:number, seed?:number}} opts
  */
 export function demoListings(source, { keywords = [], count = 18, seed = 20261112, page = 1 } = {}) {
-  const rng = mulberry32(seed + (source === 'jiaoyimao' ? 7 : 19))
+  const meta = SOURCE_META[source] ?? SOURCE_META.jiaoyimao
+  const rng = mulberry32(seed + meta.seed)
   const items = []
 
   for (let i = 0; i < count; i++) {
@@ -83,7 +93,7 @@ export function demoListings(source, { keywords = [], count = 18, seed = 2026111
       `绑定：${rng() < 0.5 ? '可换绑手机' : '邮箱可改'}`,
     ].join('；')
 
-    const externalId = `${source === 'jiaoyimao' ? 'JYM' : 'PX'}-${2026}${String(page * 1000 + 1100 + i).padStart(5, '0')}`
+    const externalId = `${meta.prefix}-${2026}${String(page * 1000 + 1100 + i).padStart(5, '0')}`
 
     // 约 40% 的商品"盗用"了对应作品的官方素材图（演示盗图检测）
     const assetId = ASSET_BY_GAME[game.key] && rng() < 0.4 ? ASSET_BY_GAME[game.key] : null
@@ -97,11 +107,9 @@ export function demoListings(source, { keywords = [], count = 18, seed = 2026111
       gameName: game.name,
       assetId,
       assetFlips: 2 + Math.floor(rng() * 4),
-      sellerName: `${source === 'jiaoyimao' ? '猫' : '蟹'}字号-${String.fromCharCode(65 + (i % 26))}${100 + (i % 90)}`,
-      sellerRef: `${source === 'jiaoyimao' ? 's' : 'p'}-${(5000 + i * 13).toString(16)}`,
-      url: source === 'jiaoyimao'
-        ? `https://demo.jiaoyimao.invalid/item/${externalId}`
-        : `https://demo.pangxie.invalid/goods/${externalId}`,
+      sellerName: `${meta.seller}字号-${String.fromCharCode(65 + (i % 26))}${100 + (i % 90)}`,
+      sellerRef: `${meta.prefix.toLowerCase()}-${(5000 + i * 13).toString(16)}`,
+      url: `https://${meta.domain}/${meta.path}/${externalId}`,
       postedAgoMin: Math.floor(rng() * 60 * 48),
     })
   }
