@@ -16,6 +16,7 @@ export const WEIGHTS = {
   R006: 35, // 找回/解绑风险
   R007: 12, // 未收录作品（疑似新游）
   R008: 30, // 官方内部号/内部渠道
+  R009: 35, // 盗用官方素材图（V1.1）
 }
 
 export const RULES = [
@@ -67,6 +68,12 @@ export const RULES = [
     severity: '高',
     hint: '声称官方内部号、内部渠道资源，涉嫌虚假宣传或职务侵占',
   },
+  {
+    code: 'R009',
+    name: '盗用版权方素材图',
+    severity: '高',
+    hint: '商品主图与素材库中的官方素材高度相似（pHash 比对），涉嫌盗图',
+  },
 ]
 
 const PATTERNS = {
@@ -90,10 +97,15 @@ const hit = (text, re) => {
  * @param {number} input.price
  * @param {object|null} input.game        命中作品（含 id/name）
  * @param {boolean} input.authorized      卖家是否在授权名单
- * @param {number|null} input.marketAvg   同作品均价
+ * @param {number|null} input.marketAvg   同作品均价（兜底）
+ * @param {object|null} input.baseline    价格基线 { p20, p50 }（V1.1 起优先使用）
+ * @param {object|null} input.imageMatch  图片比对结果 { assetName, similarity }（V1.1）
  * @returns {{score:number, level:'高'|'中'|'低', alerts:Array<{ruleCode,ruleName,severity,detail,weight}>}}
  */
-export function evaluate({ title = '', description = '', price = 0, game = null, authorized = false, marketAvg = null }) {
+export function evaluate({
+  title = '', description = '', price = 0, game = null, authorized = false,
+  marketAvg = null, baseline = null, imageMatch = null,
+}) {
   const text = `${title} ${description}`
   const alerts = []
   const push = (code, detail, weightOverride) => {
@@ -120,7 +132,10 @@ export function evaluate({ title = '', description = '', price = 0, game = null,
   const service = hit(text, PATTERNS.R004)
   if (service) push('R004', `命中「${service}」`)
 
-  if (marketAvg && price > 0 && price < marketAvg * 0.4) {
+  // 异常低价：优先用作品的价格基线 P20，没有基线时退回「均价 40%」
+  if (baseline?.p20 && price > 0 && price < baseline.p20) {
+    push('R005', `标价 ¥${price} 低于同作品 P20 基线 ¥${baseline.p20}（为基线的 ${Math.round((price / baseline.p20) * 100)}%）`)
+  } else if (!baseline?.p20 && marketAvg && price > 0 && price < marketAvg * 0.4) {
     push('R005', `标价 ¥${price} 低于同作品均价 ¥${marketAvg} 的 40%（折扣 ${(price / marketAvg * 100).toFixed(0)}%）`)
   }
 
@@ -133,6 +148,10 @@ export function evaluate({ title = '', description = '', price = 0, game = null,
 
   const insider = hit(text, PATTERNS.R008)
   if (insider) push('R008', `命中「${insider}」`)
+
+  if (imageMatch && imageMatch.similarity >= 84) {
+    push('R009', `商品主图与素材「${imageMatch.assetName}」相似度 ${imageMatch.similarity}%（pHash 比对）`)
+  }
 
   // 同一条线索最多计 3 条高权重规则，避免规则叠加把分数瞬间打满而失去区分度
   const score = Math.min(

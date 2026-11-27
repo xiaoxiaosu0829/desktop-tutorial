@@ -9,6 +9,8 @@ import analytics from './routes/analytics.mjs'
 import listings from './routes/listings.mjs'
 import catalog from './routes/catalog.mjs'
 import ops from './routes/ops.mjs'
+import cases from './routes/cases.mjs'
+import assets from './routes/assets.mjs'
 import { startScheduler } from './services/crawler/index.mjs'
 import { countUsers, registerUser } from './services/auth.mjs'
 
@@ -30,8 +32,9 @@ app.use((req, res, next) => {
 })
 
 // 公开接口：健康检查（用于探活，不含业务数据）
+const VERSION = 'V1.1'
 app.get('/api/health', (req, res) => {
-  res.json({ ok: true, version: 'V1.0', db: 'sqlite' })
+  res.json({ ok: true, version: VERSION, db: 'sqlite' })
 })
 
 // 账号接口（注册 / 登录 / 登出 / 当前用户）自身处理鉴权
@@ -43,6 +46,8 @@ app.use('/api', analytics)
 app.use('/api', listings)
 app.use('/api', catalog)
 app.use('/api', ops)
+app.use('/api', cases)
+app.use('/api', assets)
 
 // 生产模式：托管前端构建产物
 const dist = join(here, '..', 'web', 'dist')

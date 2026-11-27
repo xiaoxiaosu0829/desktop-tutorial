@@ -28,8 +28,8 @@ export default function Overview({ onNavigate }: { onNavigate: (r: string) => vo
         <StatCard label="监测线索总量" value={m.listings} hint={`近 7 日新增 ${m.newLast7d}`} />
         <StatCard label="高风险线索" value={m.highRisk} tone="danger" hint="未处置，需优先复核" />
         <StatCard label="待处理预警" value={m.openAlerts} tone="accent" hint={`处置率 ${m.handledRate}%`} />
-        <StatCard label="在监测作品" value={m.games} hint="版权库已收录" />
-        <StatCard label="已备案授权方" value={m.licensedSellers} tone="ok" hint="白名单卖家" />
+        <StatCard label="在监测作品" value={m.games} hint={`素材库 ${m.assets ?? 0} 张 · 图片命中 ${m.imageHits ?? 0}`} />
+        <StatCard label="未结案件" value={m.openCases ?? 0} tone="accent" hint="待受理 / 调查 / 发函中" />
         <StatCard label="处置完成率" value={`${m.handledRate}%`} hint="已处理 / 全部预警" />
       </div>
 

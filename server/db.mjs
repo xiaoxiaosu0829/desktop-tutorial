@@ -12,6 +12,20 @@ export const DB_PATH = process.env.DSH_MONITOR_DB || join(dataDir, 'app.db')
 const db = new DatabaseSync(DB_PATH)
 db.exec(readFileSync(join(here, 'schema.sql'), 'utf8'))
 
+/** 轻量迁移：给已有库补列（SQLite 的 ADD COLUMN 不幂等，先查后加） */
+function migrate() {
+  const cols = db.prepare(`PRAGMA table_info(listings)`).all().map((c) => c.name)
+  const add = [
+    ['image_hash', 'ALTER TABLE listings ADD COLUMN image_hash TEXT'],
+    ['image_asset_id', 'ALTER TABLE listings ADD COLUMN image_asset_id TEXT'],
+    ['image_similarity', 'ALTER TABLE listings ADD COLUMN image_similarity INTEGER'],
+  ]
+  for (const [name, sql] of add) {
+    if (!cols.includes(name)) db.exec(sql)
+  }
+}
+migrate()
+
 export default db
 
 /** 查询辅助：返回对象数组 */

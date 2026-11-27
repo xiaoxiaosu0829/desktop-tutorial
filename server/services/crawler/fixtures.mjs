@@ -20,6 +20,9 @@ const GAMES = [
 const REGIONS = ['国服', '安卓QQ区', 'iOS微信区', '官服', '渠道服', '亚服']
 const TRAIT_EXTRA = ['多皮肤', '带月卡', '含季票', '资源充足', '可换绑', '实名已解']
 
+/** 各作品对应的官方素材（演示用：部分商品会"盗用"这些素材的图） */
+const ASSET_BY_GAME = { hm: 'ast_hm', ys: 'ast_ys', sr: 'ast_sr', mh: 'ast_mh' }
+
 const RISK_SUFFIX = [
   { text: '，包找回可签协议', tag: 'reclaim' },
   { text: '，支持解绑实名', tag: 'unbind' },
@@ -82,6 +85,9 @@ export function demoListings(source, { keywords = [], count = 18, seed = 2026111
 
     const externalId = `${source === 'jiaoyimao' ? 'JYM' : 'PX'}-${2026}${String(page * 1000 + 1100 + i).padStart(5, '0')}`
 
+    // 约 40% 的商品"盗用"了对应作品的官方素材图（演示盗图检测）
+    const assetId = ASSET_BY_GAME[game.key] && rng() < 0.4 ? ASSET_BY_GAME[game.key] : null
+
     items.push({
       externalId,
       title,
@@ -89,6 +95,8 @@ export function demoListings(source, { keywords = [], count = 18, seed = 2026111
       price,
       gameKey: game.key,
       gameName: game.name,
+      assetId,
+      assetFlips: 2 + Math.floor(rng() * 4),
       sellerName: `${source === 'jiaoyimao' ? '猫' : '蟹'}字号-${String.fromCharCode(65 + (i % 26))}${100 + (i % 90)}`,
       sellerRef: `${source === 'jiaoyimao' ? 's' : 'p'}-${(5000 + i * 13).toString(16)}`,
       url: source === 'jiaoyimao'

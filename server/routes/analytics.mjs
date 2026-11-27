@@ -5,6 +5,7 @@ import { createReport } from '../services/reporting.mjs'
 import { listAdapters } from '../services/crawler/index.mjs'
 import { RULES } from '../services/detection.mjs'
 import { revaluateAll } from '../services/crawler/index.mjs'
+import { listBaselines, computeBaselines } from '../services/baseline.mjs'
 
 const router = Router()
 
@@ -43,6 +44,9 @@ router.get('/overview', (req, res) => {
       const done = one(`SELECT COUNT(*) c FROM alerts WHERE status IN ('已处理','误报')`).c
       return total ? Math.round((done / total) * 100) : 0
     })(),
+    openCases: one(`SELECT COUNT(*) c FROM cases WHERE status IN ('待受理','调查中','已发函','渠道处理中')`).c,
+    assets: one(`SELECT COUNT(*) c FROM assets`).c,
+    imageHits: one(`SELECT COUNT(*) c FROM listings WHERE image_similarity IS NOT NULL`).c,
   }
 
   // 近 7 日趋势（按日聚合，缺失日补 0）
@@ -103,6 +107,17 @@ router.post('/reports', (req, res) => {
 /** 授权台账变更后重算全部评分 */
 router.post('/revaluate', (req, res) => {
   res.json(revaluateAll())
+})
+
+/** 价格基线：查看 / 重算 */
+router.get('/baselines', (req, res) => {
+  res.json({ items: listBaselines() })
+})
+
+router.post('/baselines/refresh', (req, res) => {
+  const result = computeBaselines()
+  const revalued = revaluateAll()
+  res.json({ ...result, revalued })
 })
 
 export default router

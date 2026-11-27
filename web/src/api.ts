@@ -75,7 +75,27 @@ export const api = {
   reports: () => request('/reports'),
   createReport: (body: Json) => request('/reports', { method: 'POST', body: JSON.stringify(body) }),
   revaluate: () => request('/revaluate', { method: 'POST' }),
+
+  // 案件（V1.1）
+  cases: (params: Record<string, unknown> = {}) => request(`/cases${qs(params)}`),
+  caseDetail: (id: string) => request(`/cases/${id}`),
+  createCase: (body: Json) => request('/cases', { method: 'POST', body: JSON.stringify(body) }),
+  updateCase: (id: string, body: Json) => request(`/cases/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  addCaseEvent: (id: string, body: Json) => request(`/cases/${id}/events`, { method: 'POST', body: JSON.stringify(body) }),
+  attachListing: (id: string, listingId: string) =>
+    request(`/cases/${id}/listings`, { method: 'POST', body: JSON.stringify({ listingId }) }),
+
+  // 素材库与图片指纹（V1.1）
+  assets: () => request('/assets'),
+  uploadAsset: (body: Json) => request('/assets', { method: 'POST', body: JSON.stringify(body) }),
+  deleteAsset: (id: string) => request(`/assets/${id}`, { method: 'DELETE' }),
+
+  // 价格基线（V1.1）
+  baselines: () => request('/baselines'),
+  refreshBaselines: () => request('/baselines/refresh', { method: 'POST' }),
 }
+
+export const evidenceUrl = (listingId: string) => `/api/listings/${listingId}/evidence`
 
 export const fmtMoney = (n: number) => `¥${Number(n).toLocaleString('zh-CN')}`
 

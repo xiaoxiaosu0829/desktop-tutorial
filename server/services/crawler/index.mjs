@@ -2,6 +2,8 @@ import { all, one, run, nowISO } from '../../db.mjs'
 import { uid, addMinutes, addDays } from '../../lib/utils.mjs'
 import { buildIndex, matchGame } from '../matcher.mjs'
 import { evaluate, advise } from '../detection.mjs'
+import { similarity, variantHash } from '../imagehash.mjs'
+import { getBaseline } from '../baseline.mjs'
 import jiaoyimao from './jiaoyimao.mjs'
 import pangxie from './pangxie.mjs'
 
@@ -36,6 +38,7 @@ function sellerAuthorized(source, sellerName) {
  */
 export function ingestForensic(rawList, { source }) {
   const games = all(`SELECT id, name, aliases FROM games`)
+  const assets = all(`SELECT id, name, phash FROM assets`)
   const index = buildIndex(games)
   const avgMap = marketAverages()
   let created = 0
@@ -47,6 +50,23 @@ export function ingestForensic(rawList, { source }) {
     const game = matched.gameId ? games.find((g) => g.id === matched.gameId) : null
     const authorized = sellerAuthorized(source, raw.sellerName)
     const marketAvg = matched.gameId ? avgMap.get(matched.gameId) ?? null : null
+    const baseline = matched.gameId ? getBaseline(matched.gameId) : null
+
+    // 图片比对：真实渠道应下载主图算 pHash；演示模式用素材哈希的近邻模拟「二次压缩后的同图」
+    let imageHash = null
+    let imageAssetId = null
+    let imageSimilarity = null
+    let imageMatch = null
+    if (raw.assetId) {
+      const asset = assets.find((a) => a.id === raw.assetId)
+      if (asset) {
+        const seed = [...String(raw.externalId)].reduce((s, c) => s + c.charCodeAt(0), 0)
+        imageHash = variantHash(asset.phash, raw.assetFlips ?? 3, seed)
+        imageAssetId = asset.id
+        imageSimilarity = similarity(imageHash, asset.phash)
+        imageMatch = { assetName: asset.name, similarity: imageSimilarity }
+      }
+    }
 
     const verdict = evaluate({
       title: raw.title,
@@ -55,6 +75,8 @@ export function ingestForensic(rawList, { source }) {
       game,
       authorized,
       marketAvg,
+      baseline,
+      imageMatch,
     })
 
     const snapshotAt = new Date(Date.now() - (raw.postedAgoMin ?? 0) * 60_000).toISOString()
@@ -65,20 +87,23 @@ export function ingestForensic(rawList, { source }) {
       listingId = existing.id
       run(
         `UPDATE listings SET price = ?, snapshot_at = ?, risk_score = ?, risk_level = ?,
-           game_id = ?, game_name = ?, url = ?, raw = ? WHERE id = ?`,
+           game_id = ?, game_name = ?, url = ?, raw = ?,
+           image_hash = ?, image_asset_id = ?, image_similarity = ? WHERE id = ?`,
         [raw.price, snapshotAt, verdict.score, verdict.level, matched.gameId, matched.gameName,
-          raw.url, JSON.stringify(raw), listingId],
+          raw.url, JSON.stringify(raw), imageHash, imageAssetId, imageSimilarity, listingId],
       )
       updated++
     } else {
       listingId = uid('lst')
       run(
         `INSERT INTO listings (id, source, external_id, title, description, price, currency, game_id, game_name,
-           seller_name, seller_ref, url, snapshot_at, raw, status, risk_score, risk_level, created_at)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+           seller_name, seller_ref, url, snapshot_at, raw, status, risk_score, risk_level, created_at,
+           image_hash, image_asset_id, image_similarity)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
         [listingId, source, raw.externalId, raw.title, raw.description, raw.price, 'CNY',
           matched.gameId, matched.gameName, raw.sellerName, raw.sellerRef, raw.url, snapshotAt,
-          JSON.stringify(raw), verdict.level === '高' ? '侵权风险' : '待审核', verdict.score, verdict.level, nowISO()],
+          JSON.stringify(raw), verdict.level === '高' ? '侵权风险' : '待审核', verdict.score, verdict.level, nowISO(),
+          imageHash, imageAssetId, imageSimilarity],
       )
       created++
     }
@@ -160,6 +185,7 @@ export async function runTask(taskId, { trigger = 'manual' } = {}) {
 /** 版权库 / 授权台账变更后，重算全部线索的风险分 */
 export function revaluateAll() {
   const games = all(`SELECT id, name, aliases FROM games`)
+  const assets = all(`SELECT id, name, phash FROM assets`)
   const index = buildIndex(games)
   const rows = all(`SELECT * FROM listings`)
   const avgMap = marketAverages()
@@ -168,6 +194,10 @@ export function revaluateAll() {
     const matched = matchGame(row.title, index)
     const game = matched.gameId ? games.find((g) => g.id === matched.gameId) : null
     const authorized = sellerAuthorized(row.source, row.seller_name)
+    const asset = row.image_asset_id ? assets.find((a) => a.id === row.image_asset_id) : null
+    const imageMatch = asset && row.image_hash
+      ? { assetName: asset.name, similarity: similarity(row.image_hash, asset.phash) }
+      : null
     const verdict = evaluate({
       title: row.title,
       description: row.description,
@@ -175,6 +205,8 @@ export function revaluateAll() {
       game,
       authorized,
       marketAvg: matched.gameId ? avgMap.get(matched.gameId) ?? null : null,
+      baseline: matched.gameId ? getBaseline(matched.gameId) : null,
+      imageMatch,
     })
     if (verdict.score !== row.risk_score || verdict.level !== row.risk_level) {
       run(`UPDATE listings SET risk_score = ?, risk_level = ?, game_id = ?, game_name = ? WHERE id = ?`,

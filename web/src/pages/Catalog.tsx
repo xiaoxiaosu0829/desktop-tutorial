@@ -2,24 +2,80 @@ import React from 'react'
 import { api, sourceLabel } from '../api'
 import { Empty, Loading, useToast } from '../components/ui'
 
-type Tab = 'games' | 'licenses' | 'sellers'
+type Tab = 'games' | 'licenses' | 'sellers' | 'assets'
 
 export default function Catalog() {
   const [tab, setTab] = React.useState<Tab>('games')
   const [games, setGames] = React.useState<any[] | null>(null)
   const [licenses, setLicenses] = React.useState<any[] | null>(null)
   const [sellers, setSellers] = React.useState<any[] | null>(null)
+  const [assets, setAssets] = React.useState<any[] | null>(null)
   const [gameForm, setGameForm] = React.useState({ name: '', aliases: '', publisher: '', ipOwner: '' })
   const [licForm, setLicForm] = React.useState({ gameId: '', holder: '', licenseType: '普通', certNo: '', validTo: '' })
+  const [assetForm, setAssetForm] = React.useState<{ name: string; gameId: string; dataUrl: string; fileName: string }>({
+    name: '', gameId: '', dataUrl: '', fileName: '',
+  })
+  const [uploading, setUploading] = React.useState(false)
   const { show, node } = useToast()
 
   const load = React.useCallback(() => {
     api.games().then((r) => setGames(r.items)).catch((e) => show(e.message, true))
     api.licenses().then((r) => setLicenses(r.items)).catch(() => {})
     api.sellers().then((r) => setSellers(r.items)).catch(() => {})
+    api.assets().then((r) => setAssets(r.items)).catch(() => {})
   }, [show])
 
   React.useEffect(() => { load() }, [load])
+
+  const pickImage = (file?: File | null) => {
+    if (!file) return
+    if (!/^image\/(png|jpeg|jpg)$/.test(file.type)) {
+      show('请选择 PNG 或 JPEG 图片', true)
+      return
+    }
+    if (file.size > 4 * 1024 * 1024) {
+      show('图片不能超过 4 MB', true)
+      return
+    }
+    const reader = new FileReader()
+    reader.onload = () => {
+      setAssetForm((f) => ({
+        ...f,
+        dataUrl: String(reader.result),
+        fileName: file.name,
+        name: f.name || file.name.replace(/\.[^.]+$/, ''),
+      }))
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const uploadAsset = async () => {
+    try {
+      if (!assetForm.dataUrl) throw new Error('请先选择图片')
+      if (!assetForm.name.trim()) throw new Error('请填写素材名称')
+      setUploading(true)
+      const a = await api.uploadAsset({
+        name: assetForm.name.trim(),
+        gameId: assetForm.gameId || null,
+        dataUrl: assetForm.dataUrl,
+      })
+      setAssetForm({ name: '', gameId: '', dataUrl: '', fileName: '' })
+      load()
+      show(`素材已入库，指纹 ${a.phash}`)
+    } catch (e: any) {
+      show(e.message, true)
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const removeAsset = async (id: string) => {
+    try {
+      await api.deleteAsset(id)
+      load()
+      show('素材已删除')
+    } catch (e: any) { show(e.message, true) }
+  }
 
   const addGame = async () => {
     try {
@@ -59,6 +115,7 @@ export default function Catalog() {
           <div className={`tab ${tab === 'games' ? 'active' : ''}`} onClick={() => setTab('games')}>作品版权库</div>
           <div className={`tab ${tab === 'licenses' ? 'active' : ''}`} onClick={() => setTab('licenses')}>授权台账</div>
           <div className={`tab ${tab === 'sellers' ? 'active' : ''}`} onClick={() => setTab('sellers')}>卖家白名单</div>
+          <div className={`tab ${tab === 'assets' ? 'active' : ''}`} onClick={() => setTab('assets')}>素材库（图片指纹）</div>
         </div>
       </div>
 
@@ -193,6 +250,88 @@ export default function Catalog() {
           )}
         </div>
       )}
+      {tab === 'assets' && (
+        <>
+          <div className="card" style={{ marginBottom: 14 }}>
+            <div className="card-head">
+              <h2>上传官方素材</h2>
+              <span className="sub">只保存感知哈希，不保存原图；用于识别商品主图盗用</span>
+            </div>
+            <div className="card-body">
+              <div className="form-grid">
+                <div className="field">
+                  <label>素材名称</label>
+                  <input value={assetForm.name} placeholder="如：王者荣耀 · 2026 春季主视觉"
+                    onChange={(e) => setAssetForm({ ...assetForm, name: e.target.value })} />
+                </div>
+                <div className="field">
+                  <label>关联作品</label>
+                  <select value={assetForm.gameId} onChange={(e) => setAssetForm({ ...assetForm, gameId: e.target.value })}>
+                    <option value="">不指定</option>
+                    {(games ?? []).map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+                  </select>
+                </div>
+                <div className="field span-2">
+                  <label>图片（PNG / JPEG，≤4 MB）</label>
+                  <input type="file" accept="image/png,image/jpeg" onChange={(e) => pickImage(e.target.files?.[0])} />
+                  {assetForm.fileName && (
+                    <div className="cell-sub">已选择：{assetForm.fileName}</div>
+                  )}
+                </div>
+              </div>
+              {assetForm.dataUrl && (
+                <div style={{ marginTop: 12 }}>
+                  <img src={assetForm.dataUrl} alt="预览" style={{ maxHeight: 120, borderRadius: 8, border: '1px solid var(--line)' }} />
+                </div>
+              )}
+              <button className="btn primary" style={{ marginTop: 12 }} disabled={uploading} onClick={uploadAsset}>
+                {uploading ? '计算指纹中…' : '上传并生成指纹'}
+              </button>
+            </div>
+          </div>
+
+          <div className="card">
+            <div className="card-head">
+              <h2>素材指纹库</h2>
+              <span className="sub">{assets ? `共 ${assets.length} 张` : ''}</span>
+            </div>
+            {!assets ? <Loading /> : assets.length === 0 ? <Empty text="还没有素材，先上传一张官方图" /> : (
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>素材</th>
+                    <th style={{ width: 130 }}>作品</th>
+                    <th style={{ width: 180 }}>感知哈希</th>
+                    <th style={{ width: 90 }}>尺寸</th>
+                    <th style={{ width: 100 }}>命中线索</th>
+                    <th style={{ width: 120 }}>上传时间</th>
+                    <th style={{ width: 70 }}>操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {assets.map((a) => (
+                    <tr key={a.id}>
+                      <td>
+                        <div className="cell-title">{a.name}</div>
+                        <div className="cell-sub">{a.note || '—'}</div>
+                      </td>
+                      <td>{a.gameName ?? <span style={{ color: 'var(--ink-3)' }}>未指定</span>}</td>
+                      <td className="mono" style={{ fontSize: 11.5 }}>{a.phash}</td>
+                      <td className="mono">{a.width}×{a.height}</td>
+                      <td>
+                        <span className={`badge ${a.hitCount ? 'high' : 'gray'}`}>{a.hitCount}</span>
+                      </td>
+                      <td style={{ color: 'var(--ink-3)' }}>{a.created_at?.slice(0, 10)}</td>
+                      <td><button className="btn sm ghost" onClick={() => removeAsset(a.id)}>删除</button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </>
+      )}
+
       {node}
     </>
   )

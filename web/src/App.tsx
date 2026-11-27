@@ -4,6 +4,7 @@ import Auth from './pages/Auth'
 import Overview from './pages/Overview'
 import Listings from './pages/Listings'
 import Alerts from './pages/Alerts'
+import Cases from './pages/Cases'
 import Tasks from './pages/Tasks'
 import Catalog from './pages/Catalog'
 import Reports from './pages/Reports'
@@ -15,6 +16,7 @@ const NAV = [
       { key: 'overview', label: '总览看板', icon: '◧', title: '总览看板' },
       { key: 'listings', label: '商品线索', icon: '☰', title: '商品线索' },
       { key: 'alerts', label: '风险预警', icon: '⚑', title: '风险预警' },
+      { key: 'cases', label: '案件管理', icon: '◈', title: '案件管理' },
     ],
   },
   {
@@ -89,6 +91,7 @@ export default function App() {
     overview: <Overview onNavigate={setRoute} />,
     listings: <Listings />,
     alerts: <Alerts />,
+    cases: <Cases />,
     tasks: <Tasks />,
     catalog: <Catalog />,
     reports: <Reports />,
@@ -112,7 +115,7 @@ export default function App() {
           <div className="brand-mark">版</div>
           <div className="brand-text">
             <strong>账号交易版权监测</strong>
-            <span>{meta?.system?.version ?? 'V1.0'} · 内测框架</span>
+            <span>{meta?.system?.version ?? 'V1.1'} · 内测框架</span>
           </div>
         </div>
 
@@ -135,7 +138,7 @@ export default function App() {
         <div className="sidebar-foot">
           网络游戏账号交易版权监测系统
           <br />
-          V1.0 · 演示数据环境
+          V1.1 · 演示数据环境
         </div>
       </aside>
 
@@ -146,7 +149,7 @@ export default function App() {
           <span className="spacer" />
 
           <span className="pill demo">演示模式 · 合成数据</span>
-          <span className="pill ver">{meta?.system?.version ?? 'V1.0'}</span>
+          <span className="pill ver">{meta?.system?.version ?? 'V1.1'}</span>
 
           {/* 右上角账号区：登录入口 / 当前账号 / 退出 */}
           <div className="topbar-user">

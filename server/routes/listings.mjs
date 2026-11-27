@@ -1,12 +1,14 @@
 import { Router } from 'express'
 import { all, one, run } from '../db.mjs'
 import { advise } from '../services/detection.mjs'
+import { buildEvidenceBundle } from '../services/evidence.mjs'
+import { similarity } from '../services/imagehash.mjs'
 
 const router = Router()
 
 const LIST_COLUMNS = `id, source, external_id AS externalId, title, price, game_id AS gameId, game_name AS gameName,
   seller_name AS sellerName, url, snapshot_at AS snapshotAt, status, risk_score AS riskScore, risk_level AS riskLevel,
-  created_at AS createdAt`
+  created_at AS createdAt, image_similarity AS imageSimilarity, image_asset_id AS imageAssetId`
 
 /** 线索列表：支持关键词、渠道、风险等级、处置状态过滤与分页 */
 router.get('/listings', (req, res) => {
@@ -46,15 +48,56 @@ router.get('/listings/:id', (req, res) => {
     ? one(`SELECT AVG(price) avg, COUNT(*) c FROM listings WHERE game_id = ? AND id <> ?`, [listing.game_id, listing.id])
     : null
 
+  const asset = listing.image_asset_id ? one(`SELECT id, name, phash FROM assets WHERE id = ?`, [listing.image_asset_id]) : null
+  const imageMatch = asset && listing.image_hash
+    ? { assetId: asset.id, assetName: asset.name, similarity: similarity(listing.image_hash, asset.phash), hash: listing.image_hash }
+    : null
+
+  const cases = all(
+    `SELECT c.id, c.code, c.status, c.priority, c.owner FROM case_listings cl
+       JOIN cases c ON c.id = cl.case_id WHERE cl.listing_id = ?`,
+    [listing.id],
+  )
+
   res.json({
     listing: { ...listing, raw: listing.raw ? JSON.parse(listing.raw) : null, game, seller, marketAvg: marketAvg?.c ? Math.round(marketAvg.avg) : null },
     alerts,
+    imageMatch,
+    cases,
     verdict: {
       score: listing.risk_score,
       level: listing.risk_level,
       advise: advise(listing.risk_level, alerts.map((a) => ({ ruleCode: a.rule_code }))),
     },
   })
+})
+
+/** 取证包下载：快照 + 原始数据 + 清单（含 SHA-256） */
+router.get('/listings/:id/evidence', (req, res, next) => {
+  try {
+    const listing = one(`SELECT * FROM listings WHERE id = ?`, [req.params.id])
+    if (!listing) return res.status(404).json({ error: '线索不存在' })
+
+    const alerts = all(`SELECT * FROM alerts WHERE listing_id = ? ORDER BY created_at DESC`, [listing.id])
+    const game = listing.game_id ? one(`SELECT * FROM games WHERE id = ?`, [listing.game_id]) : null
+    const seller = one(`SELECT * FROM sellers WHERE source = ? AND seller_name = ?`, [listing.source, listing.seller_name])
+
+    const bundle = buildEvidenceBundle({
+      listing,
+      game,
+      seller,
+      alerts,
+      operator: req.user?.display_name || req.user?.username || 'unknown',
+    })
+
+    res.setHeader('Content-Type', 'application/zip')
+    res.setHeader('Content-Disposition', `attachment; filename="${bundle.filename}"`)
+    res.setHeader('Content-Length', bundle.buffer.length)
+    res.setHeader('X-Evidence-Files', bundle.manifest.files.map((f) => f.name).join(','))
+    res.end(bundle.buffer)
+  } catch (err) {
+    next(err)
+  }
 })
 
 /** 更新处置状态（状态机在 V1.0 由前端约束，服务端只做白名单校验） */

@@ -1,5 +1,5 @@
 import React from 'react'
-import { api, fmtMoney, fmtTime, sourceLabel } from '../api'
+import { api, evidenceUrl, fmtMoney, fmtTime, sourceLabel } from '../api'
 import { Drawer, Empty, Loading, RiskBadge, StatusBadge, useToast } from '../components/ui'
 
 const LEVELS = ['高', '中', '低']
@@ -37,6 +37,28 @@ export default function Listings() {
       setDetail(await api.listing(detail.listing.id))
       load()
       show(`已更新为「${status}」`)
+    } catch (e: any) {
+      show(e.message, true)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const createCase = async () => {
+    if (!detail) return
+    const title = window.prompt('案件标题', `${detail.listing.game_name ?? '未收录作品'} · ${detail.listing.seller_name ?? ''} 侵权线索`)
+    if (!title) return
+    setBusy(true)
+    try {
+      const c = await api.createCase({
+        title,
+        gameId: detail.listing.game_id,
+        sellerName: detail.listing.seller_name,
+        listingId: detail.listing.id,
+        priority: detail.listing.risk_level === '高' ? '高' : '中',
+      })
+      setDetail(await api.listing(detail.listing.id))
+      show(`已建案 ${c.code}`)
     } catch (e: any) {
       show(e.message, true)
     } finally {
@@ -111,6 +133,9 @@ export default function Listings() {
                   <td>
                     <RiskBadge level={it.riskLevel} />
                     <span className="mono" style={{ marginLeft: 6, color: 'var(--ink-3)', fontSize: 11.5 }}>{it.riskScore}</span>
+                    {it.imageSimilarity ? (
+                      <span className="badge brand" style={{ marginLeft: 6 }} title="图片比对命中素材">图{it.imageSimilarity}%</span>
+                    ) : null}
                   </td>
                   <td><StatusBadge status={it.status} /></td>
                   <td style={{ color: 'var(--ink-3)' }}>{fmtTime(it.snapshotAt)}</td>
@@ -133,6 +158,12 @@ export default function Listings() {
           onClose={() => setDetail(null)}
           footer={
             <>
+              <a className="btn" href={evidenceUrl(detail.listing.id)}>下载取证包</a>
+              {detail.cases?.length ? (
+                <span className="badge blue" style={{ alignSelf: 'center' }}>已关联 {detail.cases.length} 个案件</span>
+              ) : (
+                <button className="btn" disabled={busy} onClick={createCase}>立案</button>
+              )}
               <button className="btn" disabled={busy} onClick={() => act('合规')}>标记合规</button>
               <button className="btn" disabled={busy} onClick={() => act('误报')}>标记误报</button>
               <button className="btn" disabled={busy} onClick={() => act('已通知')}>发起下架通知</button>
@@ -150,6 +181,16 @@ export default function Listings() {
           </div>
 
           <div className="advise-box">处置建议：{detail.verdict.advise}</div>
+
+          {detail.imageMatch && (
+            <div className="rule-item" style={{ marginTop: 12, background: '#fff8f5', borderColor: '#ffd9cb' }}>
+              <span className="badge high">图片比对</span>
+              <div style={{ flex: 1 }}>
+                <div className="rule-name">与素材「{detail.imageMatch.assetName}」相似度 {detail.imageMatch.similarity}%</div>
+                <div className="rule-detail">pHash 感知哈希比对，≥84% 判为疑似盗图；已被 R009 计入风险分</div>
+              </div>
+            </div>
+          )}
 
           <div className="section-title">商品信息</div>
           <dl className="kv">

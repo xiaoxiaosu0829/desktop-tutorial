@@ -157,3 +157,68 @@ CREATE TABLE IF NOT EXISTS sessions (
 
 CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at);
+
+-- ------------------------------------------------------------------
+-- V1.1：图像指纹、价格基线、案件卷宗
+-- ------------------------------------------------------------------
+
+-- 素材库：版权方官方素材，用于「盗图」比对（只存感知哈希，不存原图）
+CREATE TABLE IF NOT EXISTS assets (
+  id         TEXT PRIMARY KEY,
+  game_id    TEXT REFERENCES games(id) ON DELETE SET NULL,
+  name       TEXT NOT NULL,
+  phash      TEXT NOT NULL,          -- 64 位感知哈希，16 位十六进制
+  width      INTEGER,
+  height     INTEGER,
+  size_bytes INTEGER,
+  note       TEXT,
+  created_at TEXT NOT NULL
+);
+
+-- 价格基线：按作品统计分位数，替代固定「均价 40%」阈值
+CREATE TABLE IF NOT EXISTS price_baselines (
+  game_id      TEXT NOT NULL,
+  region       TEXT NOT NULL DEFAULT '全部',
+  sample_count INTEGER NOT NULL DEFAULT 0,
+  p20          REAL,
+  p50          REAL,
+  p80          REAL,
+  updated_at   TEXT NOT NULL,
+  PRIMARY KEY (game_id, region)
+);
+
+-- 案件（卷宗）
+CREATE TABLE IF NOT EXISTS cases (
+  id          TEXT PRIMARY KEY,
+  code        TEXT NOT NULL UNIQUE,
+  title       TEXT NOT NULL,
+  game_id     TEXT,
+  seller_name TEXT,
+  status      TEXT NOT NULL DEFAULT '待受理',
+  priority    TEXT NOT NULL DEFAULT '中',
+  owner       TEXT,
+  deadline    TEXT,
+  summary     TEXT,
+  created_at  TEXT NOT NULL,
+  updated_at  TEXT NOT NULL,
+  closed_at   TEXT
+);
+
+CREATE TABLE IF NOT EXISTS case_listings (
+  case_id    TEXT NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
+  listing_id TEXT NOT NULL REFERENCES listings(id) ON DELETE CASCADE,
+  added_at   TEXT NOT NULL,
+  PRIMARY KEY (case_id, listing_id)
+);
+
+CREATE TABLE IF NOT EXISTS case_events (
+  id         TEXT PRIMARY KEY,
+  case_id    TEXT NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
+  type       TEXT NOT NULL,
+  content    TEXT,
+  actor      TEXT,
+  created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_cases_status ON cases(status, created_at);
+CREATE INDEX IF NOT EXISTS idx_case_events_case ON case_events(case_id, created_at);

@@ -113,7 +113,7 @@ export default function Auth({ onAuth }: { onAuth: (u: SessionUser) => void }) {
       <aside className="auth-brand">
         <div className="auth-logo">版</div>
         <h1>网络游戏账号交易<br />版权监测系统</h1>
-        <p className="auth-sub">Game Account Trading Copyright Monitor · V1.0</p>
+        <p className="auth-sub">Game Account Trading Copyright Monitor · V1.1</p>
 
         <ul className="auth-points">
           <li><b>发现</b> 按关键词周期巡检交易渠道，留存公开页面快照</li>
